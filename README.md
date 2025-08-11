@@ -43,7 +43,7 @@ tests/
 ## Running Tests
 
 Make sure:
-- the Azure Functions app is running locally on port 7071 (`http://localhost:7071`) and
+- the Azure Functions app is running locally on port 7071 (`http://localhost:7071/api`) and
 - the venv is activated, then:
 
 ```bash
@@ -59,5 +59,105 @@ pytest tests/test_integration.py::TestHealthEndpoint -v
 # Run with coverage
 pytest tests/ --cov=function_app
 ```
+
+## API
+
+### Health
+
+Request:
+
+[GET] http://localhost:7071/api/health
+
+Responese:
+
+```json
+{
+  "status": "healthy",
+  "message": "TaskTracker API is running"
+}
+```
+
+### Probes
+
+[GET] http://localhost:7071/api/v1/probes
+
+Response:
+
+```json
+{
+  "probes": [
+    {
+      "model": "mixtral",
+      "probe_type": "linear_probe",
+      "layers": [0, 15, 23, 31, 7],
+      "expected_dimensions": 4096
+    },
+    {
+      "model": "phi3",
+      "probe_type": "linear_probe",
+      "layers": [0, 15, 23, 31, 7],
+      "expected_dimensions": 3072
+    },
+    {
+      "model": "llama3_70b",
+      "probe_type": "linear_probe",
+      "layers": [0, 15, 23, 31, 39, 47, 55, 63, 7, 71, 79],
+      "expected_dimensions": 8192
+    },
+    {
+      "model": "mistral_no_priming",
+      "probe_type": "linear_probe",
+      "layers": [0, 15, 23, 31, 7],
+      "expected_dimensions": 4096
+    },
+    {
+      "model": "llama3_8b",
+      "probe_type": "linear_probe",
+      "layers": [0, 15, 23, 31, 7],
+      "expected_dimensions": 4096
+    },
+    {
+      "model": "tasktracker_phi3_medium_v2_AugmentedData",
+      "probe_type": "linear_probe",
+      "layers": [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31],
+      "expected_dimensions": 5120
+    },
+    {
+      "model": "mistral",
+      "probe_type": "linear_probe",
+      "layers": [0, 15, 23, 24, 31, 7],
+      "expected_dimensions": 4096
+    }
+  ]
+}
+```
+
+### Predict
+
+Request: [POST] http://localhost:7071/api/v1/predict
+Payload: 
+```json
+{
+    "model": "mixtral",
+    "probe_type": "linear_probe",
+    "layer": 23,
+    "primary_activations": [...],
+    "text_activations": [...]
+}
+```
+
+Response:
+```json
+{
+    "model": "llama3_8b",
+    "probe_type": "linear_probe",
+    "Layer": 7,
+    "predicted _probability": 0.0006806924081006354
+}
+```
+
+
+
+
 
 
