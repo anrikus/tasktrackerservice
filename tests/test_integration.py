@@ -60,7 +60,7 @@ class TestProbesEndpoint:
         data = response.json()
 
         for probe in data["probes"]:
-            required_fields = ["model", "probe_type", "layers"]
+            required_fields = ["model", "probe_type", "layers", "expected_dimensions"]
             for field in required_fields:
                 assert field in probe, f"Missing required field: {field}"
 
@@ -71,6 +71,12 @@ class TestProbesEndpoint:
             assert (
                 probe["probe_type"] == "linear_probe"
             ), "probe_type should be 'linear_probe'"
+            assert isinstance(
+                probe["expected_dimensions"], int
+            ), "expected_dimensions should be an integer"
+            assert (
+                probe["expected_dimensions"] > 0
+            ), "expected_dimensions should be positive"
 
     def test_probes_not_empty(self):
         """Test that at least some probes are available."""
@@ -78,6 +84,45 @@ class TestProbesEndpoint:
         data = response.json()
 
         assert len(data["probes"]) > 0, "Expected at least one probe to be available"
+
+    def test_expected_dimensions_values(self):
+        """Test that expected_dimensions contain valid known values."""
+        response = TestHelper.make_request("GET", "/v1/probes")
+        data = response.json()
+
+        # Known expected dimensions for different models
+        valid_dimensions = {3072, 4096, 5120, 8192}
+
+        for probe in data["probes"]:
+            dimensions = probe["expected_dimensions"]
+            assert (
+                dimensions in valid_dimensions
+            ), f"Unexpected dimensions {dimensions} for model {probe['model']}"
+
+    def test_model_specific_dimensions(self):
+        """Test that specific models have their expected dimensions."""
+        response = TestHelper.make_request("GET", "/v1/probes")
+        data = response.json()
+
+        # Expected dimensions for known models
+        expected_model_dimensions = {
+            "llama3_8b": 4096,
+            "llama3_70b": 8192,
+            "phi3": 3072,
+            "mistral": 4096,
+            "mistral_no_priming": 4096,
+            "mixtral": 4096,
+            "tasktracker_phi3_medium_v2_AugmentedData": 5120,
+        }
+
+        probe_dict = {probe["model"]: probe for probe in data["probes"]}
+
+        for model_name, expected_dims in expected_model_dimensions.items():
+            if model_name in probe_dict:
+                actual_dims = probe_dict[model_name]["expected_dimensions"]
+                assert (
+                    actual_dims == expected_dims
+                ), f"Model {model_name} expected {expected_dims} dimensions but got {actual_dims}"
 
 
 class TestPredictEndpoint:
@@ -91,13 +136,18 @@ class TestPredictEndpoint:
 
         test_probe = available_probes[0]
         test_layer = test_probe["layers"][0]
+        expected_dimensions = test_probe["expected_dimensions"]
 
         request_data = {
             "model": test_probe["model"],
             "probe_type": test_probe["probe_type"],
             "layer": test_layer,
-            "primary_activations": TestHelper.generate_test_activations(4096, seed=42),
-            "text_activations": TestHelper.generate_test_activations(4096, seed=43),
+            "primary_activations": TestHelper.generate_test_activations(
+                expected_dimensions, seed=42
+            ),
+            "text_activations": TestHelper.generate_test_activations(
+                expected_dimensions, seed=43
+            ),
         }
 
         response = TestHelper.make_request("POST", "/v1/predict", request_data)
@@ -113,6 +163,7 @@ class TestPredictEndpoint:
 
     def test_predict_invalid_model(self):
         """Test prediction with invalid model name."""
+        # Use any valid dimension for this test since we're testing invalid model
         request_data = {
             "model": "nonexistent_model",
             "layer": 0,
@@ -134,13 +185,18 @@ class TestPredictEndpoint:
             pytest.skip("No probes available for testing")
 
         test_probe = available_probes[0]
+        expected_dimensions = test_probe["expected_dimensions"]
         invalid_layer = 9999  # Assuming this layer doesn't exist
 
         request_data = {
             "model": test_probe["model"],
             "layer": invalid_layer,
-            "primary_activations": TestHelper.generate_test_activations(4096),
-            "text_activations": TestHelper.generate_test_activations(4096),
+            "primary_activations": TestHelper.generate_test_activations(
+                expected_dimensions
+            ),
+            "text_activations": TestHelper.generate_test_activations(
+                expected_dimensions
+            ),
         }
 
         response = TestHelper.make_request("POST", "/v1/predict", request_data)
@@ -157,12 +213,19 @@ class TestPredictEndpoint:
 
         test_probe = available_probes[0]
         test_layer = test_probe["layers"][0]
+        expected_dimensions = test_probe["expected_dimensions"]
 
         request_data = {
             "model": test_probe["model"],
             "layer": test_layer,
-            "primary_activations": [0.1, 0.2, 0.3],  # Wrong size
-            "text_activations": TestHelper.generate_test_activations(4096),
+            "primary_activations": [
+                0.1,
+                0.2,
+                0.3,
+            ],  # Wrong size (should be expected_dimensions)
+            "text_activations": TestHelper.generate_test_activations(
+                expected_dimensions
+            ),
         }
 
         response = TestHelper.make_request("POST", "/v1/predict", request_data)
@@ -210,12 +273,17 @@ class TestPredictEndpoint:
             pytest.skip("No probes available for testing")
 
         for probe in available_probes[:3]:  # Test first 3 probes
+            expected_dimensions = probe["expected_dimensions"]
             for layer in probe["layers"][:2]:  # Test first 2 layers
                 request_data = {
                     "model": probe["model"],
                     "layer": layer,
-                    "primary_activations": TestHelper.generate_test_activations(4096),
-                    "text_activations": TestHelper.generate_test_activations(4096),
+                    "primary_activations": TestHelper.generate_test_activations(
+                        expected_dimensions
+                    ),
+                    "text_activations": TestHelper.generate_test_activations(
+                        expected_dimensions
+                    ),
                 }
 
                 response = TestHelper.make_request("POST", "/v1/predict", request_data)
@@ -245,12 +313,17 @@ class TestIntegration:
         # 3. Make prediction with first available probe
         probe = probes_data["probes"][0]
         layer = probe["layers"][0]
+        expected_dimensions = probe["expected_dimensions"]
 
         request_data = {
             "model": probe["model"],
             "layer": layer,
-            "primary_activations": TestHelper.generate_test_activations(4096),
-            "text_activations": TestHelper.generate_test_activations(4096),
+            "primary_activations": TestHelper.generate_test_activations(
+                expected_dimensions
+            ),
+            "text_activations": TestHelper.generate_test_activations(
+                expected_dimensions
+            ),
         }
 
         predict_response = TestHelper.make_request("POST", "/v1/predict", request_data)

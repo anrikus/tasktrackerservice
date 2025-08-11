@@ -15,31 +15,22 @@ from typing import List, Optional
 
 import azure.functions as func
 import numpy as np
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
+
 
 # Pydantic Models for Request/Response Validation
 class PredictRequest(BaseModel):
     """Request model for prediction endpoint with activation validation."""
 
     model: str = Field(..., description="Model name (e.g., 'llama3_8b')")
-    probe_type: str = Field(default="linear_probe",
-                            description="Type of probe")
+    probe_type: str = Field(default="linear_probe", description="Type of probe")
     layer: int = Field(..., ge=0, description="Layer number (must be >= 0)")
     primary_activations: List[float] = Field(
         ..., description="Primary activation values"
     )
-    text_activations: List[float] = Field(...,
-                                          description="Text activation values")
-
-    @field_validator("primary_activations", "text_activations")
-    @classmethod
-    def validate_activations_length(cls, v: List[float]) -> List[float]:
-        """Validate that activation arrays have exactly 4096 dimensions."""
-        if len(v) != 4096:
-            raise ValueError("Activations must have exactly 4096 dimensions")
-        return v
+    text_activations: List[float] = Field(..., description="Text activation values")
 
 
 class PredictResponse(BaseModel):
@@ -72,9 +63,9 @@ app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 def _get_expected_dimensions(config_file: Path) -> Optional[int]:
     """Get expected dimensions from config file."""
     try:
-        with open(config_file, 'r', encoding='utf-8') as f:
+        with open(config_file, "r", encoding="utf-8") as f:
             config = json.load(f)
-        return config.get('expected_dimensions')
+        return config.get("expected_dimensions")
     except (FileNotFoundError, json.JSONDecodeError, KeyError):
         return None
 
@@ -109,32 +100,31 @@ def _discover_probes(probes_dir: Path) -> List[ProbeInfo]:
             first_layer_dir = model_dir / str(layers[0])
             config_file = first_layer_dir / "config.json"
             expected_dimensions = _get_expected_dimensions(config_file)
-            
+
             # Only include probes where we can determine expected dimensions
             if expected_dimensions is not None:
                 probe_info = ProbeInfo(
-                    model=model_dir.name, 
-                    probe_type="linear_probe", 
+                    model=model_dir.name,
+                    probe_type="linear_probe",
                     layers=layers,
-                    expected_dimensions=expected_dimensions
+                    expected_dimensions=expected_dimensions,
                 )
                 probes.append(probe_info)
             else:
                 logging.warning(
                     "Skipping model %s: could not determine expected dimensions",
-                    model_dir.name
+                    model_dir.name,
                 )
     return probes
 
 
 @app.route(route="health", methods=["GET"])
-def health_check(req: func.HttpRequest) -> func.HttpResponse: 
+def health_check(req: func.HttpRequest) -> func.HttpResponse:
     """Health check endpoint"""
     logging.info("Health check endpoint was triggered.")
 
     return func.HttpResponse(
-        json.dumps(
-            {"status": "healthy", "message": "TaskTracker API is running"}),
+        json.dumps({"status": "healthy", "message": "TaskTracker API is running"}),
         status_code=200,
         mimetype="application/json",
     )
@@ -179,6 +169,71 @@ def predict(req: func.HttpRequest) -> func.HttpResponse:
         with open(model_file, "rb") as f:
             probe_model = pickle.load(f)
 
+        # Load config to get expected dimensions
+        config_file = probe_dir / "config.json"
+        if not config_file.exists():
+            error_msg = (
+                f"Config not found for model '{request_data.model}' "
+                f"at layer {request_data.layer}"
+            )
+            return func.HttpResponse(
+                json.dumps({"error": error_msg}),
+                status_code=404,
+                mimetype="application/json",
+            )
+
+        with open(config_file, "r", encoding="utf-8") as f:
+            config = json.load(f)
+
+        expected_dimensions = config.get("expected_dimensions")
+        if not expected_dimensions:
+            error_msg = (
+                f"Expected dimensions not found in config for model '{request_data.model}' "
+                f"at layer {request_data.layer}"
+            )
+            return func.HttpResponse(
+                json.dumps({"error": error_msg}),
+                status_code=500,
+                mimetype="application/json",
+            )
+
+        # Validate activation dimensions against model expectations
+        if len(request_data.primary_activations) != expected_dimensions:
+            error_msg = f"primary_activations must have exactly {expected_dimensions} dimensions, got {len(request_data.primary_activations)}"
+            return func.HttpResponse(
+                json.dumps(
+                    {
+                        "error": "Validation failed",
+                        "details": [
+                            {
+                                "field": "primary_activations",
+                                "message": f"Value error, Activations must have exactly {expected_dimensions} dimensions",
+                            }
+                        ],
+                    }
+                ),
+                status_code=400,
+                mimetype="application/json",
+            )
+
+        if len(request_data.text_activations) != expected_dimensions:
+            error_msg = f"text_activations must have exactly {expected_dimensions} dimensions, got {len(request_data.text_activations)}"
+            return func.HttpResponse(
+                json.dumps(
+                    {
+                        "error": "Validation failed",
+                        "details": [
+                            {
+                                "field": "text_activations",
+                                "message": f"Value error, Activations must have exactly {expected_dimensions} dimensions",
+                            }
+                        ],
+                    }
+                ),
+                status_code=400,
+                mimetype="application/json",
+            )
+
         logging.info(
             # Compute delta and make prediction
             "Successfully loaded probe for %s layer %s",
@@ -206,8 +261,7 @@ def predict(req: func.HttpRequest) -> func.HttpResponse:
             predicted_probability = float(prediction[0])
         else:
             return func.HttpResponse(
-                json.dumps(
-                    {"error": "Probe model does not support prediction"}),
+                json.dumps({"error": "Probe model does not support prediction"}),
                 status_code=500,
                 mimetype="application/json",
             )
@@ -264,8 +318,7 @@ def list_probes(req: func.HttpRequest) -> func.HttpResponse:
 
     try:
         # Path to the trained linear probes directory
-        probes_dir = Path(__file__).parent / \
-            "models" / "trained_linear_probes"
+        probes_dir = Path(__file__).parent / "models" / "trained_linear_probes"
 
         # Discover all available probes
         probes = _discover_probes(probes_dir)
