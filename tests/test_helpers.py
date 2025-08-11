@@ -32,10 +32,11 @@ class TestHelper:
 
         if method.upper() == "GET":
             return requests.get(url, headers=headers, timeout=TIMEOUT)
-        elif method.upper() == "POST":
+
+        if method.upper() == "POST":
             return requests.post(url, headers=headers, json=data, timeout=TIMEOUT)
-        else:
-            raise ValueError(f"Unsupported HTTP method: {method}")
+
+        raise ValueError(f"Unsupported HTTP method: {method}")
 
     @staticmethod
     def get_available_probes():
