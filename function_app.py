@@ -13,11 +13,11 @@ import pickle
 from pathlib import Path
 from typing import List
 
+import azure.functions as func
 import numpy as np
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-import azure.functions as func
-
+app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 # Pydantic Models for Request/Response Validation
 class PredictRequest(BaseModel):
@@ -102,7 +102,7 @@ def _discover_probes(probes_dir: Path) -> List[ProbeInfo]:
 
 
 @app.route(route="health", methods=["GET"])
-def health_check(_req: func.HttpRequest) -> func.HttpResponse:
+def health_check(req: func.HttpRequest) -> func.HttpResponse: 
     """Health check endpoint"""
     logging.info("Health check endpoint was triggered.")
 
@@ -130,7 +130,7 @@ def predict(req: func.HttpRequest) -> func.HttpResponse:
 
         # Load the probe
         probe_dir = (
-            Path(__file__).parent.parent
+            Path(__file__).parent
             / "models"
             / "trained_linear_probes"
             / request_data.model
@@ -232,13 +232,13 @@ def predict(req: func.HttpRequest) -> func.HttpResponse:
 
 
 @app.route(route="v1/probes", methods=["GET"])
-def list_probes(_req: func.HttpRequest) -> func.HttpResponse:
+def list_probes(req: func.HttpRequest) -> func.HttpResponse:
     """List available probes endpoint"""
     logging.info("List probes endpoint was triggered.")
 
     try:
         # Path to the trained linear probes directory
-        probes_dir = Path(__file__).parent.parent / \
+        probes_dir = Path(__file__).parent / \
             "models" / "trained_linear_probes"
 
         # Discover all available probes

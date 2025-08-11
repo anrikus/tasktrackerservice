@@ -1,0 +1,19 @@
+{
+    "azureFunctions.deploySubpath": ".",
+    "azureFunctions.projectLanguage": "Python",
+    "azureFunctions.projectLanguageModel": 2,
+    "azureFunctions.projectRuntime": "~4",
+    "azureFunctions.pythonVenv": ".venv",
+    "azureFunctions.scmDoBuildDuringDeployment": true,
+    "debug.internalConsoleOptions": "neverOpen",
+    "editor.codeActionsOnSave": {
+        "source.fixAll": true,
+        "source.organizeImports": true,
+        "source.sort.json": true,
+        "source.unusedImports": true
+    },
+    "editor.formatOnSave": true,
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    "python.terminal.activateEnvironment": true
+}
