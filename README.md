@@ -2,6 +2,7 @@
 
 ### Mac:
 
+1. Open the repo in VSCode and install all recommended extenstions.
 1. Install homebrew: `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
 1. Install python 3.12: `brew install python@3.12`
 1. Create .venv: `python3.12 -m venv .venv`
@@ -13,6 +14,18 @@
 1. Start the debug run locally by using the Run and Debug icon in the left-hand side Activity bar. [More info](https://learn.microsoft.com/en-us/azure/azure-functions/create-first-function-vs-code-python#run-the-function-locally)
 1. Click on the Azure Icon > Local projects > Functions > The relevant HTTP endpoint. [More info](https://learn.microsoft.com/en-us/azure/azure-functions/create-first-function-vs-code-python#run-the-function-locally)
 
+### Windows:
+
+Spent my Sunday evening trying to get Azure Functions Core Tools to function properly in a Debian devcontainer but faced way to many bugs (x64 / aarch64 issues, endpoints / ports being flaky etc.).
+
+Not sure what goblins lay hiding on WSL / Windows. 
+Git on Windows is flaky enough when working with *nix style commits.
+
+But for the brave, here are the relevant links to get you started:
+- [Azure docs](https://learn.microsoft.com/en-us/azure/azure-functions/create-first-function-vs-code-python#run-the-function-locally)
+- [Azure Functions Core Tools](https://github.com/Azure/azure-functions-core-tools)
+
+May the force be with you.
 
 ## Tests
 
