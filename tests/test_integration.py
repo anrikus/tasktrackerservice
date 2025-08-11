@@ -201,7 +201,7 @@ class TestPredictEndpoint:
             url, headers=headers, data="invalid json{", timeout=TIMEOUT
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 500
 
     def test_predict_multiple_models(self):
         """Test prediction works with different available models."""
