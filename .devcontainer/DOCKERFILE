@@ -1,0 +1,3 @@
+FROM mcr.microsoft.com/devcontainers/python:3.12-bookworm
+SHELL ["/bin/bash", "-c"]
+RUN apt-get update && apt-get upgrade -y
