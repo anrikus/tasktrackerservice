@@ -3,3 +3,6 @@ mypy
 pylint
 pytest
 isort
+pytest
+pytest-asyncio
+httpx
