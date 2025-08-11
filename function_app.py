@@ -11,7 +11,7 @@ import json
 import logging
 import pickle
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import azure.functions as func
 import numpy as np
@@ -52,11 +52,12 @@ class PredictResponse(BaseModel):
 
 
 class ProbeInfo(BaseModel):
-    """Information about an available probe including supported layers."""
+    """Information about an available probe including supported layers and expected dimensions."""
 
     model: str
     probe_type: str
     layers: List[int]
+    expected_dimensions: int
 
 
 class ProbesResponse(BaseModel):
@@ -66,6 +67,16 @@ class ProbesResponse(BaseModel):
 
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
+
+
+def _get_expected_dimensions(config_file: Path) -> Optional[int]:
+    """Get expected dimensions from config file."""
+    try:
+        with open(config_file, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        return config.get('expected_dimensions')
+    except (FileNotFoundError, json.JSONDecodeError, KeyError):
+        return None
 
 
 def _get_available_layers(model_dir: Path) -> List[int]:
@@ -94,10 +105,25 @@ def _discover_probes(probes_dir: Path) -> List[ProbeInfo]:
 
         layers = _get_available_layers(model_dir)
         if layers:
-            probe_info = ProbeInfo(
-                model=model_dir.name, probe_type="linear_probe", layers=layers
-            )
-            probes.append(probe_info)
+            # Get expected dimensions from the first available layer's config
+            first_layer_dir = model_dir / str(layers[0])
+            config_file = first_layer_dir / "config.json"
+            expected_dimensions = _get_expected_dimensions(config_file)
+            
+            # Only include probes where we can determine expected dimensions
+            if expected_dimensions is not None:
+                probe_info = ProbeInfo(
+                    model=model_dir.name, 
+                    probe_type="linear_probe", 
+                    layers=layers,
+                    expected_dimensions=expected_dimensions
+                )
+                probes.append(probe_info)
+            else:
+                logging.warning(
+                    "Skipping model %s: could not determine expected dimensions",
+                    model_dir.name
+                )
     return probes
 
 
