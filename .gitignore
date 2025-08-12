@@ -136,4 +136,3 @@ __azurite_db*__.json
 
 # Project-specific files
 .specstory/
-tasktracker-server-v1/*

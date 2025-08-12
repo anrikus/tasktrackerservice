@@ -1,0 +1,15 @@
+meta {
+  name: Health
+  type: http
+  seq: 2
+}
+
+get {
+  url: https://tasktrackerserviceapimanagement.azure-api.net/tasktracker-service-v1/health
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}
