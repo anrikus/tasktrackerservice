@@ -60,7 +60,7 @@ pytest tests/test_integration.py::TestHealthEndpoint -v
 pytest tests/ --cov=function_app
 ```
 
-## API
+## API Local
 
 ### Health
 
@@ -155,6 +155,15 @@ Response:
     "predicted _probability": 0.0006806924081006354
 }
 ```
+
+### Azure Function deployment API :
+
+- Download and install [Bruno](https://www.usebruno.com/downloads)
+- Open the the dir `tasktracker-server-v1` as a collection in `Bruno`
+- The API config and sample payloads are already configured. Just hit the endpoints using in Bruno.
+
+### TO DO
+OpenAPI spec 
 
 
 
