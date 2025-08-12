@@ -117,7 +117,7 @@ def _discover_probes(probes_dir: Path) -> List[ProbeInfo]:
                 )
     return probes
 
-
+@app.function_name(name="HttpTriggerGetHealth")
 @app.route(route="health", methods=["GET"])
 def health_check(req: func.HttpRequest) -> func.HttpResponse:
     """Health check endpoint"""
@@ -129,11 +129,12 @@ def health_check(req: func.HttpRequest) -> func.HttpResponse:
         mimetype="application/json",
     )
 
-
+@app.function_name(name="HttpTriggerPostPredict")
 @app.route(route="v1/predict", methods=["POST"])
 def predict(req: func.HttpRequest) -> func.HttpResponse:
     """Main prediction endpoint"""
     logging.info("Predict endpoint was triggered.")
+    logging.info("Request body: %s", req.get_body().decode("utf-8"))
 
     try:
         # Parse and validate request using Pydantic
@@ -310,7 +311,7 @@ def predict(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json",
         )
 
-
+@app.function_name(name="HttpTriggerGetProbes")
 @app.route(route="v1/probes", methods=["GET"])
 def list_probes(req: func.HttpRequest) -> func.HttpResponse:
     """List available probes endpoint"""
